@@ -1,0 +1,13 @@
+# Dev image — không COPY source, sẽ mount qua compose để hot reload
+FROM node:20-alpine
+WORKDIR /app
+
+RUN apk add --no-cache python3 make g++
+
+COPY package*.json ./
+RUN npm install
+
+RUN mkdir -p uploads
+
+EXPOSE 5000
+CMD ["npx", "nodemon", "server.js"]
