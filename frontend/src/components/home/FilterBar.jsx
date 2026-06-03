@@ -1,27 +1,13 @@
+import { ITEM_CATEGORIES, LOCATIONS } from '../../utils/constants.js';
+
 const TYPE_TABS = [
   { value: 'all', label: 'Tất cả' },
   { value: 'lost', label: 'Mất đồ' },
   { value: 'found', label: 'Nhặt được' },
 ];
 
-const CATEGORIES = [
-  'Tất cả danh mục',
-  'Ví / Túi xách',
-  'Điện thoại',
-  'Thẻ sinh viên / CCCD',
-  'Tai nghe',
-  'Chìa khóa',
-  'Sách / Tài liệu',
-];
-
-const LOCATIONS = [
-  'Tất cả khu vực',
-  'Thư viện',
-  'Căn tin A',
-  'Sân bóng',
-  'Ký túc xá B3',
-  'Giảng đường B2',
-];
+const CATEGORIES = ['Tất cả danh mục', ...ITEM_CATEGORIES];
+const AREA_OPTIONS = ['Tất cả khu vực', ...LOCATIONS];
 
 export default function FilterBar({ filters, onChange }) {
   const updateFilter = (key, value) => onChange({ ...filters, [key]: value });
@@ -63,7 +49,7 @@ export default function FilterBar({ filters, onChange }) {
                 onChange={(event) => updateFilter('location', event.target.value)}
                 aria-label="Khu vực"
               >
-                {LOCATIONS.map((location) => (
+                {AREA_OPTIONS.map((location) => (
                   <option key={location} value={location}>{location}</option>
                 ))}
               </select>
@@ -74,7 +60,7 @@ export default function FilterBar({ filters, onChange }) {
                 className="form-control"
                 value={filters.date}
                 onChange={(event) => updateFilter('date', event.target.value)}
-                aria-label="Ngày đăng"
+                aria-label="Ngày sự việc"
               />
             </div>
           </div>

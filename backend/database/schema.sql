@@ -53,8 +53,8 @@ CREATE TABLE IF NOT EXISTS matches (
   UNIQUE KEY uq_match (lost_post_id, found_post_id),
   INDEX idx_matches_lost_post_id (lost_post_id),
   INDEX idx_matches_found_post_id (found_post_id),
-  CONSTRAINT fk_matches_lost_post_id FOREIGN KEY (lost_post_id) REFERENCES posts(id),
-  CONSTRAINT fk_matches_found_post_id FOREIGN KEY (found_post_id) REFERENCES posts(id)
+  CONSTRAINT fk_matches_lost_post_id FOREIGN KEY (lost_post_id) REFERENCES posts(id) ON DELETE CASCADE,
+  CONSTRAINT fk_matches_found_post_id FOREIGN KEY (found_post_id) REFERENCES posts(id) ON DELETE CASCADE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
 CREATE TABLE IF NOT EXISTS messages (
@@ -71,7 +71,7 @@ CREATE TABLE IF NOT EXISTS messages (
   INDEX idx_conversation (sender_id, receiver_id),
   CONSTRAINT fk_messages_sender_id FOREIGN KEY (sender_id) REFERENCES users(id),
   CONSTRAINT fk_messages_receiver_id FOREIGN KEY (receiver_id) REFERENCES users(id),
-  CONSTRAINT fk_messages_post_id FOREIGN KEY (post_id) REFERENCES posts(id)
+  CONSTRAINT fk_messages_post_id FOREIGN KEY (post_id) REFERENCES posts(id) ON DELETE SET NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 CREATE TABLE IF NOT EXISTS notifications (

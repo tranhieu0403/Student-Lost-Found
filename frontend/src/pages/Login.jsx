@@ -1,13 +1,12 @@
 import { useState } from 'react';
-import { Link, useLocation, useNavigate } from 'react-router-dom';
+import { Link } from 'react-router-dom';
 import { Eye, EyeSlash, CircleNotch } from '@phosphor-icons/react';
+import { authService } from '../services/authService.js';
 import { useAuth } from '../hooks/useAuth.js';
 import { useDocumentTitle } from '../hooks/useDocumentTitle.js';
 
 export default function Login() {
   useDocumentTitle('Đăng nhập');
-  const navigate = useNavigate();
-  const location = useLocation();
   const { login } = useAuth();
 
   const [email, setEmail] = useState('');
@@ -16,18 +15,18 @@ export default function Login() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
 
-  const redirectTo = location.state?.from?.pathname || '/';
-
   const handleSubmit = async (e) => {
     e.preventDefault();
     if (loading) return;
     setError('');
     setLoading(true);
     try {
-      await login(email, password);
-      navigate(redirectTo, { replace: true });
+      const res = await authService.login(email, password);
+      const payload = res?.data ?? res;
+      const { user, token } = payload;
+      login(user, token);
     } catch (err) {
-      setError(err?.message || 'Email hoặc mật khẩu không đúng');
+      setError(err?.message || 'Đăng nhập thất bại');
     } finally {
       setLoading(false);
     }

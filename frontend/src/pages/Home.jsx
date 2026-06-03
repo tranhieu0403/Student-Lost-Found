@@ -1,11 +1,12 @@
 import { useMemo, useState, useEffect } from 'react';
-// Navbar is rendered at App level
 import SearchBar from '../components/home/SearchBar.jsx';
 import FilterBar from '../components/home/FilterBar.jsx';
 import PostCard from '../components/home/PostCard.jsx';
 import EmptyState from '../components/home/EmptyState.jsx';
 import ErrorState from '../components/home/ErrorState.jsx';
 import { useDocumentTitle } from '../hooks/useDocumentTitle.js';
+import { postService } from '../services/postService.js';
+import { extractPostsList, filterPosts } from '../utils/postUtils.js';
 
 const INITIAL_FILTERS = {
   type: 'all',
@@ -13,10 +14,6 @@ const INITIAL_FILTERS = {
   location: 'Tất cả khu vực',
   date: '',
 };
-
-import { postService } from '../services/postService.js';
-
-// Posts will be loaded from API
 
 export default function Home() {
   useDocumentTitle('Student Lost & Found');
@@ -29,15 +26,8 @@ export default function Home() {
   async function fetchPosts() {
     setLoadingPosts(true);
     try {
-      const res = await postService.getPosts();
-      // API returns { success: true, data: [...] } — normalize to array
-      let list = [];
-      if (Array.isArray(res)) list = res;
-      else if (Array.isArray(res?.data?.posts)) list = res.data.posts;
-      else if (Array.isArray(res?.data)) list = res.data;
-      else if (Array.isArray(res?.posts)) list = res.posts;
-      else list = [];
-      setPostsData(list);
+      const res = await postService.getPosts({ limit: 100 });
+      setPostsData(extractPostsList(res));
       setHasError(false);
     } catch (err) {
       setHasError(true);
@@ -52,22 +42,10 @@ export default function Home() {
     return () => { mounted = false; };
   }, []);
 
-  const posts = useMemo(() => {
-    const keyword = search.trim().toLowerCase();
-
-    const listSource = Array.isArray(postsData) ? postsData : [];
-    return listSource.filter((post) => {
-      const matchesSearch = !keyword
-        || post.title.toLowerCase().includes(keyword)
-        || post.description.toLowerCase().includes(keyword)
-        || post.location.toLowerCase().includes(keyword);
-      const matchesType = filters.type === 'all' || post.type === filters.type;
-      const matchesCategory = filters.category === 'Tất cả danh mục' || post.category === filters.category;
-      const matchesLocation = filters.location === 'Tất cả khu vực' || post.location.includes(filters.location);
-
-      return matchesSearch && matchesType && matchesCategory && matchesLocation;
-    });
-  }, [filters, search, postsData]);
+  const posts = useMemo(
+    () => filterPosts(postsData, { search, filters }),
+    [filters, search, postsData],
+  );
 
   return (
     <div className="home-page">

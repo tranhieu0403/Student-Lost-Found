@@ -13,11 +13,19 @@ api.interceptors.request.use((config) => {
 api.interceptors.response.use(
   (res) => res.data,
   (err) => {
-    if (err.response?.status === 401) {
+    const status = err.response?.status;
+    const body = err.response?.data;
+    const shouldLogout =
+      status === 401 || (status === 403 && body?.error === 'ACCOUNT_LOCKED');
+
+    if (shouldLogout) {
       localStorage.removeItem('token');
       localStorage.removeItem('user');
+      if (body?.error === 'ACCOUNT_LOCKED' && !window.location.pathname.startsWith('/login')) {
+        window.location.href = '/login';
+      }
     }
-    return Promise.reject(err.response?.data || err);
+    return Promise.reject(body || err);
   },
 );
 

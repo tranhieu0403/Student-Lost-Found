@@ -44,7 +44,7 @@ exports.login = async ({ email, password }) => {
     throw buildUnauthorizedError();
   }
 
-  if (user.is_locked) {
+  if (Number(user.is_locked) === 1) {
     const err = new Error('Tài khoản đã bị khóa');
     err.status = 403;
     err.code = 'ACCOUNT_LOCKED';
@@ -76,7 +76,7 @@ exports.login = async ({ email, password }) => {
 
 exports.findById = async (id) => {
   const [users] = await pool.query(
-    'SELECT id, name, email, role, created_at FROM users WHERE id = ? LIMIT 1',
+    'SELECT id, name, email, role, is_locked, created_at FROM users WHERE id = ? LIMIT 1',
     [id]
   );
 
@@ -87,5 +87,13 @@ exports.findById = async (id) => {
     throw err;
   }
 
-  return users[0];
+  if (Number(users[0].is_locked) === 1) {
+    const err = new Error('Tài khoản đã bị khóa');
+    err.status = 403;
+    err.code = 'ACCOUNT_LOCKED';
+    throw err;
+  }
+
+  const { is_locked: _ignored, ...user } = users[0];
+  return user;
 };

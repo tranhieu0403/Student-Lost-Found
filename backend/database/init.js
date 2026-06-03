@@ -2,11 +2,19 @@ const fs = require('fs/promises');
 const path = require('path');
 const { pool } = require('../src/config/db');
 
+function stripSqlComments(sql) {
+  return sql
+    .split('\n')
+    .filter((line) => !line.trim().startsWith('--'))
+    .join('\n')
+    .trim();
+}
+
 async function runSqlFile(filePath) {
   const sql = await fs.readFile(filePath, 'utf8');
   const statements = sql
     .split(/;\s*\n/)
-    .map((s) => s.trim())
+    .map((s) => stripSqlComments(s))
     .filter(Boolean);
 
   for (const statement of statements) {

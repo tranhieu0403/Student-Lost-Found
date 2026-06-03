@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
+import { Link } from 'react-router-dom';
 import { Eye, EyeSlash, CircleNotch } from '@phosphor-icons/react';
 import { authService } from '../services/authService.js';
 import { useAuth } from '../hooks/useAuth.js';
@@ -27,7 +27,6 @@ function validateField(name, value, all) {
 
 export default function Register() {
   useDocumentTitle('Đăng ký');
-  const navigate = useNavigate();
   const { login } = useAuth();
 
   const [values, setValues] = useState(INITIAL);
@@ -64,9 +63,10 @@ export default function Register() {
     setLoading(true);
     try {
       await authService.register(values.name, values.email, values.password);
-      // Automatically log the user in after successful registration
-      await login(values.email, values.password);
-      navigate('/', { replace: true });
+      const res = await authService.login(values.email, values.password);
+      const payload = res?.data ?? res;
+      const { user, token } = payload;
+      login(user, token);
     } catch (err) {
       setSubmitError(err?.message || 'Không thể tạo tài khoản. Vui lòng thử lại.');
     } finally {

@@ -1,16 +1,18 @@
 import api from './api.js';
 
-export const uploadService = {
-  getPresignedUrl: (filename, contentType) =>
-    api.post('/upload/presign', { filename, contentType }),
+const uploadService = {
+  uploadImages: async (files) => {
+    if (!files?.length) return [];
 
-  uploadToS3: async (presignedUrl, file) => {
-    const res = await fetch(presignedUrl, {
-      method: 'PUT',
-      headers: { 'Content-Type': file.type },
-      body: file,
+    const formData = new FormData();
+    files.forEach((file) => formData.append('images', file));
+
+    const res = await api.post('/upload', formData, {
+      headers: { 'Content-Type': 'multipart/form-data' },
     });
-    if (!res.ok) throw new Error('Tải ảnh lên S3 thất bại');
-    return presignedUrl.split('?')[0];
+
+    return res?.data?.imageUrls ?? [];
   },
 };
+
+export default uploadService;

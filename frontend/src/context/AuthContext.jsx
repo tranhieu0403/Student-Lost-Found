@@ -1,4 +1,5 @@
 import { createContext, useEffect, useMemo, useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { authService } from '../services/authService.js';
 import { USER_ROLE } from '../utils/constants.js';
 
@@ -12,6 +13,7 @@ function extractData(response) {
 }
 
 export function AuthProvider({ children }) {
+  const navigate = useNavigate();
   const [user, setUser] = useState(null);
   const [token, setToken] = useState(() => localStorage.getItem(KEY_TOKEN));
   const [loading, setLoading] = useState(true);
@@ -52,19 +54,17 @@ export function AuthProvider({ children }) {
     };
   }, []);
 
-  const login = async (email, password) => {
-    const res = await authService.login(email, password);
-    const { user: nextUser, token: nextToken } = extractData(res);
-
-    if (!nextUser || !nextToken) {
-      throw new Error('Phản hồi đăng nhập không hợp lệ');
-    }
-
+  const login = (userData, nextToken) => {
     localStorage.setItem(KEY_TOKEN, nextToken);
-    localStorage.setItem(KEY_USER, JSON.stringify(nextUser));
+    localStorage.setItem(KEY_USER, JSON.stringify(userData));
     setToken(nextToken);
-    setUser(nextUser);
-    return nextUser;
+    setUser(userData);
+
+    if (userData.role === USER_ROLE.ADMIN) {
+      navigate('/admin/dashboard', { replace: true });
+    } else {
+      navigate('/', { replace: true });
+    }
   };
 
   const logout = () => {

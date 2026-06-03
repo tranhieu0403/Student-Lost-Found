@@ -1,5 +1,6 @@
 import { Link } from 'react-router-dom';
 import { CalendarBlank, MapPin } from '@phosphor-icons/react';
+import { normalizePost } from '../../utils/postUtils.js';
 
 const TYPE_LABEL = {
   lost: 'MẤT ĐỒ',
@@ -11,14 +12,16 @@ const STATUS_LABEL = {
   resolved: 'Đã tìm thấy',
 };
 
-export default function PostCard({ post }) {
+export default function PostCard({ post: rawPost }) {
+  const post = normalizePost(rawPost);
   const typeClass = post.type === 'lost' ? 'badge-lost' : 'badge-found';
   const statusClass = post.status === 'resolved' ? 'badge-resolved' : 'badge-searching';
+  const imageSrc = post.image || 'https://placehold.co/600x400/f3f4f6/9ca3af?text=No+image';
 
   return (
     <article className="post-card h-100">
       <div className="post-image-wrap">
-        <img src={post.image} className="post-image" alt={post.title} loading="lazy" />
+        <img src={imageSrc} className="post-image" alt={post.title} loading="lazy" />
         <div className="post-badges">
           <span className={`post-badge ${typeClass}`}>{TYPE_LABEL[post.type]}</span>
           <span className={`post-badge ${statusClass}`}>{STATUS_LABEL[post.status]}</span>

@@ -33,7 +33,13 @@ function validate(v) {
 
 const FIELD_ORDER = ['type', 'title', 'category', 'date', 'location'];
 
-export default function PostForm({ values, onChange, onSubmit, loading }) {
+export default function PostForm({
+  values,
+  onChange,
+  onSubmit,
+  loading,
+  categories = ITEM_CATEGORIES,
+}) {
   const [errors, setErrors] = useState({});
   const refs = {
     type: useRef(null),
@@ -113,7 +119,7 @@ export default function PostForm({ values, onChange, onSubmit, loading }) {
             className={inputCls('category')}
           >
             <option value="">-- Chọn danh mục --</option>
-            {ITEM_CATEGORIES.map((c) => (
+            {categories.map((c) => (
               <option key={c} value={c}>{c}</option>
             ))}
           </select>

@@ -3,7 +3,7 @@ import { Outlet, NavLink, useLocation } from 'react-router-dom';
 import { ChartBar, Article, Users, ShieldCheck, List, X } from '@phosphor-icons/react';
 
 const NAV = [
-  { to: '/admin', end: true, label: 'Dashboard', icon: ChartBar },
+  { to: '/admin/dashboard', end: true, label: 'Dashboard', icon: ChartBar },
   { to: '/admin/posts', label: 'Bài đăng', icon: Article },
   { to: '/admin/users', label: 'Người dùng', icon: Users },
 ];

@@ -63,9 +63,10 @@ export default function App() {
               path="/admin"
               element={<AdminRoute><AdminLayout /></AdminRoute>}
             >
-              <Route index element={<Dashboard />} />
-              <Route path="users" element={<ManageUsers />} />
+              <Route index element={<Navigate to="/admin/dashboard" replace />} />
+              <Route path="dashboard" element={<Dashboard />} />
               <Route path="posts" element={<ManagePosts />} />
+              <Route path="users" element={<ManageUsers />} />
             </Route>
 
             <Route path="*" element={<NotFound />} />

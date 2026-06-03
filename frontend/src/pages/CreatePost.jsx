@@ -1,23 +1,13 @@
-import { useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import PostForm, { INITIAL_VALUES } from '../components/post/PostForm.jsx';
 import PostCard from '../components/post/PostCard.jsx';
 import { POST_STATUS, ITEM_CATEGORIES } from '../utils/constants.js';
 import { postService } from '../services/postService.js';
-import { uploadService } from '../services/uploadService.js';
+import uploadService from '../services/uploadService.js';
+import categoryService from '../services/categoryService.js';
 import { useDocumentTitle } from '../hooks/useDocumentTitle.js';
 import { useToast } from '../context/ToastContext.jsx';
-
-const CATEGORY_MAP = {
-  'Ví / Túi xách': 1,
-  'Điện thoại': 2,
-  'Laptop / Máy tính bảng': 3,
-  'Thẻ sinh viên / CCCD': 4,
-  'Tai nghe': 5,
-  'Chìa khóa': 6,
-  'Sách / Tài liệu': 7,
-  'Khác': 8,
-};
 
 export default function CreatePost() {
   useDocumentTitle('Đăng bài mới');
@@ -26,6 +16,27 @@ export default function CreatePost() {
   const [values, setValues] = useState(INITIAL_VALUES);
   const [loading, setLoading] = useState(false);
   const [submitError, setSubmitError] = useState('');
+  const [categoryMap, setCategoryMap] = useState({});
+
+  useEffect(() => {
+    categoryService
+      .getAll()
+      .then((list) => {
+        const map = {};
+        (list || []).forEach((item) => {
+          map[item.name] = item.id;
+        });
+        setCategoryMap(map);
+      })
+      .catch(() => {
+        toast.error('Không tải được danh mục. Vui lòng tải lại trang.');
+      });
+  }, [toast]);
+
+  const categoryOptions = useMemo(() => {
+    const names = Object.keys(categoryMap);
+    return names.length > 0 ? names : ITEM_CATEGORIES;
+  }, [categoryMap]);
 
   const previewPost = {
     id: 'preview',
@@ -44,21 +55,22 @@ export default function CreatePost() {
     setSubmitError('');
     setLoading(true);
     try {
-      const imageUrls = [];
-      for (const file of data.images) {
-        const res = await uploadService.getPresignedUrl(file.name, file.type);
-        const { uploadUrl, fileUrl } = res?.data || res;
-        const url = await uploadService.uploadToS3(uploadUrl, file);
-        imageUrls.push(fileUrl || url);
+      const imageUrls = await uploadService.uploadImages(data.images);
+
+      const categoryId = data.category ? categoryMap[data.category] : null;
+      if (data.category && !categoryId) {
+        throw new Error('Danh mục không hợp lệ. Vui lòng chọn lại hoặc chạy npm run db:seed.');
       }
 
       const payload = {
         post_type: data.type,
         title: data.title.trim(),
-        category_id: data.category ? CATEGORY_MAP[data.category] : null,
+        category_id: categoryId,
         description: data.description.trim(),
         incident_date: data.date,
-        location: data.specific_location.trim() ? `${data.location} - ${data.specific_location.trim()}` : data.location,
+        location: data.specific_location.trim()
+          ? `${data.location} - ${data.specific_location.trim()}`
+          : data.location,
         image_urls: imageUrls,
       };
 
@@ -91,6 +103,7 @@ export default function CreatePost() {
             onChange={setValues}
             onSubmit={handleSubmit}
             loading={loading}
+            categories={categoryOptions}
           />
           {submitError && (
             <p className="mt-4 text-xs text-status-lost bg-red-50 border border-red-100 rounded-lg px-3 py-2">

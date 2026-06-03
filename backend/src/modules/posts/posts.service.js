@@ -1,5 +1,6 @@
 const { pool } = require('../../config/db');
 const matchesService = require('../matches/matches.service');
+const categoriesService = require('../categories/categories.service');
 
 function toNotFoundError(message = 'Không tìm thấy bài đăng') {
   const err = new Error(message);
@@ -151,12 +152,14 @@ exports.detail = async (id) => {
 };
 
 exports.create = async (userId, payload) => {
+  const categoryId = await categoriesService.resolveCategoryId(payload.category_id);
+
   const [result] = await pool.query(
     `INSERT INTO posts (user_id, category_id, post_type, title, description, location, incident_date, status)
      VALUES (?, ?, ?, ?, ?, ?, ?, 'searching')`,
     [
       userId,
-      payload.category_id || null,
+      categoryId,
       payload.post_type,
       payload.title,
       payload.description || null,
@@ -188,12 +191,14 @@ exports.update = async (currentUser, id, payload) => {
     throw err;
   }
 
+  const categoryId = await categoriesService.resolveCategoryId(payload.category_id);
+
   await pool.query(
     `UPDATE posts
      SET category_id = ?, post_type = ?, title = ?, description = ?, location = ?, incident_date = ?
      WHERE id = ?`,
     [
-      payload.category_id || null,
+      categoryId,
       payload.post_type,
       payload.title,
       payload.description || null,

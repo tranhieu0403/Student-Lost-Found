@@ -10,29 +10,62 @@ exports.stats = async () => {
       (SELECT COUNT(id) FROM matches) AS totalMatches`
   );
 
-  const [recentActivity] = await pool.query(
+  const [dailyStats] = await pool.query(
     `SELECT
       DATE(p.created_at) AS date,
       SUM(CASE WHEN p.post_type = 'lost' THEN 1 ELSE 0 END) AS lost_count,
       SUM(CASE WHEN p.post_type = 'found' THEN 1 ELSE 0 END) AS found_count
      FROM posts p
-     WHERE p.created_at >= DATE_SUB(CURDATE(), INTERVAL 6 DAY)
+     WHERE p.is_deleted = 0 AND p.created_at >= DATE_SUB(CURDATE(), INTERVAL 29 DAY)
      GROUP BY DATE(p.created_at)
      ORDER BY DATE(p.created_at)`
   );
 
+  const [categoryStats] = await pool.query(
+    `SELECT
+      COALESCE(c.name, 'Khác') AS name,
+      COUNT(p.id) AS count
+     FROM posts p
+     LEFT JOIN categories c ON c.id = p.category_id
+     WHERE p.is_deleted = 0
+     GROUP BY COALESCE(c.name, 'Khác')
+     ORDER BY count DESC`
+  );
+
+  const [recentPosts] = await pool.query(
+    `SELECT
+      p.id, p.title, p.post_type AS type, p.created_at,
+      u.name AS user_name
+     FROM posts p
+     INNER JOIN users u ON u.id = p.user_id
+     WHERE p.is_deleted = 0
+     ORDER BY p.created_at DESC
+     LIMIT 10`
+  );
+
   const summary = summaryRows[0];
-  const totalPostCount = Number(summary.totalLostPosts) + Number(summary.totalFoundPosts);
-  const successRate = totalPostCount === 0 ? '0.0' : ((Number(summary.resolvedPosts) / totalPostCount) * 100).toFixed(1);
+  const totalLostPosts = Number(summary.totalLostPosts);
+  const totalFoundPosts = Number(summary.totalFoundPosts);
+  const totalPostCount = totalLostPosts + totalFoundPosts;
+  const resolvedPosts = Number(summary.resolvedPosts);
+  const successRate = totalPostCount === 0
+    ? '0.0'
+    : ((resolvedPosts / totalPostCount) * 100).toFixed(1);
 
   return {
-    totalLostPosts: Number(summary.totalLostPosts),
-    totalFoundPosts: Number(summary.totalFoundPosts),
-    resolvedPosts: Number(summary.resolvedPosts),
+    totalPosts: totalPostCount,
+    totalLostPosts,
+    totalFoundPosts,
+    resolvedPosts,
+    resolved_posts: resolvedPosts,
     successRate,
+    success_rate: successRate,
     totalUsers: Number(summary.totalUsers),
     totalMatches: Number(summary.totalMatches),
-    recentActivity,
+    dailyStats,
+    categoryStats,
+    recentPosts,
+    recentActivity: dailyStats,
   };
 };
 
@@ -44,30 +77,32 @@ exports.listUsers = async (query = {}) => {
   const whereClauses = [];
   const params = [];
   if (query.role) {
-    whereClauses.push('role = ?');
+    whereClauses.push('u.role = ?');
     params.push(query.role);
   }
-  if (query.is_locked !== undefined) {
-    whereClauses.push('is_locked = ?');
+  if (query.is_locked !== undefined && query.is_locked !== '') {
+    whereClauses.push('u.is_locked = ?');
     params.push(Number(query.is_locked));
   }
   if (query.search) {
-    whereClauses.push('(name LIKE ? OR email LIKE ?)');
+    whereClauses.push('(u.name LIKE ? OR u.email LIKE ?)');
     params.push(`%${query.search}%`, `%${query.search}%`);
   }
 
   const whereSql = whereClauses.length ? `WHERE ${whereClauses.join(' AND ')}` : '';
 
   const [users] = await pool.query(
-    `SELECT id, name, email, role, is_locked, created_at
-     FROM users
+    `SELECT
+      u.id, u.name, u.email, u.role, u.is_locked, u.created_at,
+      (SELECT COUNT(p.id) FROM posts p WHERE p.user_id = u.id) AS post_count
+     FROM users u
      ${whereSql}
-     ORDER BY created_at DESC
+     ORDER BY u.created_at DESC
      LIMIT ? OFFSET ?`,
     [...params, limit, offset]
   );
   const [countRows] = await pool.query(
-    `SELECT COUNT(id) AS total FROM users ${whereSql}`,
+    `SELECT COUNT(u.id) AS total FROM users u ${whereSql}`,
     params
   );
 
@@ -99,18 +134,53 @@ exports.listPosts = async (query = {}) => {
   const limit = Math.min(Math.max(Number(query.limit) || 10, 1), 50);
   const offset = (page - 1) * limit;
 
+  const whereClauses = [];
+  const params = [];
+
+  if (query.type) {
+    whereClauses.push('p.post_type = ?');
+    params.push(query.type);
+  }
+  if (query.status) {
+    whereClauses.push('p.status = ?');
+    params.push(query.status);
+  }
+  if (query.search) {
+    whereClauses.push('(p.title LIKE ? OR u.name LIKE ?)');
+    params.push(`%${query.search}%`, `%${query.search}%`);
+  }
+  if (query.include_deleted === '1' || query.include_deleted === 'true') {
+    if (query.deleted_only === '1' || query.deleted_only === 'true') {
+      whereClauses.push('p.is_deleted = 1');
+    }
+  } else {
+    whereClauses.push('p.is_deleted = 0');
+  }
+
+  const whereSql = whereClauses.length ? `WHERE ${whereClauses.join(' AND ')}` : '';
+
   const [posts] = await pool.query(
     `SELECT
-      p.id, p.user_id, p.category_id, p.post_type, p.title, p.location, p.incident_date, p.status, p.is_deleted, p.created_at,
-      u.name AS owner_name
+      p.id, p.title, p.post_type AS type, p.status, p.is_deleted, p.created_at,
+      COALESCE(c.name, 'Khác') AS category,
+      u.name AS user_name
      FROM posts p
      INNER JOIN users u ON u.id = p.user_id
+     LEFT JOIN categories c ON c.id = p.category_id
+     ${whereSql}
      ORDER BY p.created_at DESC
      LIMIT ? OFFSET ?`,
-    [limit, offset]
+    [...params, limit, offset]
   );
 
-  const [countRows] = await pool.query('SELECT COUNT(id) AS total FROM posts');
+  const [countRows] = await pool.query(
+    `SELECT COUNT(p.id) AS total
+     FROM posts p
+     INNER JOIN users u ON u.id = p.user_id
+     ${whereSql}`,
+    params
+  );
+
   return {
     posts,
     total: countRows[0].total,
@@ -120,6 +190,23 @@ exports.listPosts = async (query = {}) => {
 };
 
 exports.removePost = async (id) => {
-  await pool.query('DELETE FROM posts WHERE id = ?', [id]);
-  return { deleted: true };
+  const connection = await pool.getConnection();
+  try {
+    await connection.beginTransaction();
+
+    await connection.query(
+      'DELETE FROM matches WHERE lost_post_id = ? OR found_post_id = ?',
+      [id, id]
+    );
+    await connection.query('UPDATE messages SET post_id = NULL WHERE post_id = ?', [id]);
+    await connection.query('DELETE FROM posts WHERE id = ?', [id]);
+
+    await connection.commit();
+    return { deleted: true };
+  } catch (error) {
+    await connection.rollback();
+    throw error;
+  } finally {
+    connection.release();
+  }
 };

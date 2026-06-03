@@ -4,6 +4,7 @@ const path = require('path');
 const helmet = require('helmet');
 
 const authRoutes = require('./modules/auth/auth.routes');
+const categoriesRoutes = require('./modules/categories/categories.routes');
 const postsRoutes = require('./modules/posts/posts.routes');
 const matchesRoutes = require('./modules/matches/matches.routes');
 const chatRoutes = require('./modules/chat/chat.routes');
@@ -21,6 +22,7 @@ app.use('/uploads', express.static(path.join(__dirname, '../uploads')));
 
 app.get('/api/health', healthCheck);
 app.use('/api/auth', authRoutes);
+app.use('/api/categories', categoriesRoutes);
 app.use('/api/posts', postsRoutes);
 app.use('/api/matches', matchesRoutes);
 app.use('/api/chat', chatRoutes);
