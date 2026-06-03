@@ -1,4 +1,8 @@
-require('dotenv').config();
+const path = require('path');
+
+// Ưu tiên .env ở root repo (docker-compose), sau đó backend/.env
+require('dotenv').config({ path: path.join(__dirname, '../.env') });
+require('dotenv').config({ path: path.join(__dirname, '.env') });
 const { createServer } = require('http');
 const { Server } = require('socket.io');
 const jwt = require('jsonwebtoken');

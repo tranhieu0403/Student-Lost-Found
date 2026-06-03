@@ -13,28 +13,46 @@ const pool = mysql.createPool({
   queueLimit: 0,
 });
 
-async function testConnection(maxRetries = 10, retryDelayMs = 2000) {
+async function testConnection(maxRetries = 20, retryDelayMs = 3000) {
+  const host = process.env.DB_HOST || '(missing DB_HOST)';
+  const port = Number(process.env.DB_PORT) || 3306;
+  const database = process.env.DB_NAME || '(missing DB_NAME)';
   let lastError;
+
   for (let attempt = 1; attempt <= maxRetries; attempt += 1) {
     try {
       const connection = await pool.getConnection();
       try {
         await connection.query('SELECT 1');
-        console.log('Database connected successfully.');
+        if (attempt > 1) {
+          console.log(`Database connected successfully (attempt ${attempt}/${maxRetries}).`);
+        } else {
+          console.log('Database connected successfully.');
+        }
         return;
       } finally {
         connection.release();
       }
     } catch (error) {
       lastError = error;
-      console.warn(`Database connection attempt ${attempt}/${maxRetries} failed.`);
+      console.warn(
+        `Database connection attempt ${attempt}/${maxRetries} failed (${host}:${port}/${database}).`
+      );
       if (attempt < maxRetries) {
         await new Promise((resolve) => setTimeout(resolve, retryDelayMs));
       }
     }
   }
 
-  throw lastError;
+  const hint =
+    host === 'db'
+      ? ' Backend chạy ngoài Docker thì đặt DB_HOST=localhost trong .env.'
+      : '';
+  const err = new Error(
+    `Không kết nối được MySQL sau ${maxRetries} lần thử.${hint} Chi tiết: ${lastError.message}`
+  );
+  err.cause = lastError;
+  throw err;
 }
 
 module.exports = {
