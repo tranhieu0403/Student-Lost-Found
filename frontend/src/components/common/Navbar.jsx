@@ -11,6 +11,8 @@ import {
   Notebook,
 } from '@phosphor-icons/react';
 import { useAuth } from '../../hooks/useAuth.js';
+import chatService from '../../services/chatService.js';
+import { getSocket } from '../../hooks/useChat.js';
 
 const ICON = 20;
 
@@ -26,6 +28,46 @@ export default function Navbar() {
 }
 
 function DesktopNav({ user, isAuthenticated, loading, onLogout }) {
+  const [unreadMessages, setUnreadMessages] = useState(0);
+  const token = localStorage.getItem('token');
+
+  const refreshBadge = async () => {
+    try {
+      const res = await chatService.getConversations();
+      const conversations = res?.data || res || [];
+      const total = conversations.reduce(
+        (sum, conv) => sum + (conv.unread_count || 0),
+        0,
+      );
+      setUnreadMessages(total);
+    } catch {
+      setUnreadMessages(0);
+    }
+  };
+
+  useEffect(() => {
+    if (!isAuthenticated) {
+      setUnreadMessages(0);
+      return;
+    }
+
+    refreshBadge();
+  }, [isAuthenticated]);
+
+  useEffect(() => {
+    if (!isAuthenticated || !token) return;
+
+    const socket = getSocket(token);
+    socket.on('new_message', refreshBadge);
+    socket.on('conversation_updated', refreshBadge);
+    socket.on('messages_read', refreshBadge);
+
+    return () => {
+      socket.off('new_message', refreshBadge);
+      socket.off('conversation_updated', refreshBadge);
+      socket.off('messages_read', refreshBadge);
+    };
+  }, [isAuthenticated, token]);
   return (
     <nav className="hidden md:block sticky top-0 z-40 bg-white/80 backdrop-blur border-b border-gray-100">
       <div className="max-w-6xl mx-auto px-4 h-14 flex items-center justify-between">
@@ -43,7 +85,9 @@ function DesktopNav({ user, isAuthenticated, loading, onLogout }) {
             <>
               <Link to="/chat" className="text-sm text-gray-700 hover:text-gray-900 px-3 py-1.5 rounded-lg hover:bg-gray-50 relative">
                 <ChatCircle size={18} weight="light" />
-                <span className="absolute -top-1 -right-1 inline-flex items-center justify-center px-2 py-0.5 text-xs font-semibold leading-none text-white bg-red-500 rounded-full">3</span>
+                {unreadMessages > 0 && (
+                  <span className="absolute -top-1 -right-1 w-2.5 h-2.5 bg-red-500 rounded-full" />
+                )}
               </Link>
               <UserMenu user={user} onLogout={onLogout} />
             </>

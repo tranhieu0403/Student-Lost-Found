@@ -7,3 +7,5 @@ export const chatService = {
     api.post('/chat/messages', { receiverId, content }),
   markAsRead: (partnerId) => api.patch(`/chat/messages/${partnerId}/read`),
 };
+
+export default chatService;

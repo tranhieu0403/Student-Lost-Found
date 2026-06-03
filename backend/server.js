@@ -1,9 +1,70 @@
 require('dotenv').config();
+const { createServer } = require('http');
+const { Server } = require('socket.io');
+const jwt = require('jsonwebtoken');
 const app = require('./src/app');
 const { testConnection } = require('./src/config/db');
 const initializeDatabase = require('./database/init');
 
 const PORT = process.env.PORT || 5000;
+const CLIENT_URL = process.env.CLIENT_URL || 'http://localhost:5173';
+
+const httpServer = createServer(app);
+
+const io = new Server(httpServer, {
+  cors: {
+    origin: CLIENT_URL,
+    methods: ['GET', 'POST'],
+    credentials: true,
+  },
+});
+
+io.use((socket, next) => {
+  const token = socket.handshake.auth?.token;
+  if (!token) return next(new Error('Unauthorized'));
+
+  try {
+    const decoded = jwt.verify(token, process.env.JWT_SECRET);
+    socket.user = decoded;
+    next();
+  } catch {
+    next(new Error('Token invalid'));
+  }
+});
+
+io.on('connection', (socket) => {
+  const userId = socket.user.id;
+  socket.join(`user:${userId}`);
+  console.log(`Socket connected: user ${userId}`);
+
+  socket.on('send_message', async ({ receiverId, content }) => {
+    if (!receiverId || !content?.trim()) return;
+
+    try {
+      const { default: chatService } = await import('./src/modules/chat/chat.service.js');
+      const message = await chatService.sendMessageSocket(userId, receiverId, content.trim());
+
+      socket.emit('new_message', message);
+      io.to(`user:${receiverId}`).emit('new_message', message);
+      socket.emit('conversation_updated');
+      io.to(`user:${receiverId}`).emit('conversation_updated');
+    } catch (err) {
+      socket.emit('message_error', { message: err.message });
+    }
+  });
+
+  socket.on('mark_read', async ({ partnerId }) => {
+    try {
+      const { default: chatService } = await import('./src/modules/chat/chat.service.js');
+      await chatService.markAsRead(userId, partnerId);
+      io.to(`user:${partnerId}`).emit('messages_read', { readBy: userId });
+    } catch {}
+  });
+
+  socket.on('disconnect', () => {
+    console.log(`Socket disconnected: user ${userId}`);
+  });
+});
 
 let server;
 
@@ -13,8 +74,8 @@ async function bootstrap() {
     await initializeDatabase();
   }
 
-  server = app.listen(PORT, () => {
-    console.log(`Server running on port ${PORT}`);
+  server = httpServer.listen(PORT, () => {
+    console.log(`Server + WebSocket running on port ${PORT}`);
   });
 }
 
@@ -34,3 +95,5 @@ process.on('SIGTERM', () => {
     process.exit(0);
   });
 });
+
+module.exports = { io, httpServer };

@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { Link, NavLink } from 'react-router-dom';
 import {
   ChatCircle,
@@ -8,13 +8,60 @@ import {
   SignOut,
 } from '@phosphor-icons/react';
 import { useAuth } from '../../hooks/useAuth.js';
+import chatService from '../../services/chatService.js';
+import { getSocket } from '../../hooks/useChat.js';
 // Using page routes for login/register instead of modal dialogs
-
-const UNREAD_MESSAGES = 3;
 
 export default function Navbar() {
   const { user, loading, login, logout } = useAuth();
   const isLoggedIn = !loading && user !== null;
+  const [unreadMessages, setUnreadMessages] = useState(0);
+  const token = localStorage.getItem('token');
+
+  const refreshBadge = async () => {
+    try {
+      const res = await chatService.getConversations();
+      const conversations = res?.data || res || [];
+      const total = conversations.reduce(
+        (sum, conv) => sum + (conv.unread_count || 0),
+        0,
+      );
+      setUnreadMessages(total);
+    } catch {
+      setUnreadMessages(0);
+    }
+  };
+
+  useEffect(() => {
+    let mounted = true;
+    if (!isLoggedIn) {
+      setUnreadMessages(0);
+      return () => {
+        mounted = false;
+      };
+    }
+
+    refreshBadge();
+
+    return () => {
+      mounted = false;
+    };
+  }, [isLoggedIn]);
+
+  useEffect(() => {
+    if (!isLoggedIn || !token) return;
+
+    const socket = getSocket(token);
+    socket.on('new_message', refreshBadge);
+    socket.on('conversation_updated', refreshBadge);
+    socket.on('messages_read', refreshBadge);
+
+    return () => {
+      socket.off('new_message', refreshBadge);
+      socket.off('conversation_updated', refreshBadge);
+      socket.off('messages_read', refreshBadge);
+    };
+  }, [isLoggedIn, token]);
 
   return (
     <>
@@ -101,9 +148,9 @@ function LoggedInActions({ user, onLogout }) {
     <>
       <Link className="btn icon-btn position-relative" to="/chat" aria-label="Tin nhắn">
         <ChatCircle className="ti-message-circle" size={22} />
-        {UNREAD_MESSAGES > 0 && (
+        {unreadMessages > 0 && (
           <span className="position-absolute top-0 start-100 translate-middle badge rounded-pill alert-badge">
-            {UNREAD_MESSAGES}
+            {unreadMessages > 99 ? '99+' : unreadMessages}
           </span>
         )}
       </Link>

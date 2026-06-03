@@ -24,31 +24,17 @@ exports.getConversations = async (userId) => {
   return rows;
 };
 
-exports.getMessages = async (userId, otherUserId, page = 1, limit = 20) => {
-  const normalizedPage = Math.max(Number(page) || 1, 1);
-  const normalizedLimit = Math.min(Math.max(Number(limit) || 20, 1), 100);
-  const offset = (normalizedPage - 1) * normalizedLimit;
-
+exports.getMessages = async (userId, otherUserId) => {
   const [messages] = await pool.query(
     `SELECT id, sender_id, receiver_id, post_id, content, is_read, created_at
      FROM messages
      WHERE (sender_id = ? AND receiver_id = ?) OR (sender_id = ? AND receiver_id = ?)
-     ORDER BY created_at ASC
-     LIMIT ? OFFSET ?`,
-    [userId, otherUserId, otherUserId, userId, normalizedLimit, offset]
-  );
-
-  const [countRows] = await pool.query(
-    `SELECT COUNT(id) AS total
-     FROM messages
-     WHERE (sender_id = ? AND receiver_id = ?) OR (sender_id = ? AND receiver_id = ?)`,
+     ORDER BY created_at ASC`,
     [userId, otherUserId, otherUserId, userId]
   );
 
   return {
     messages,
-    total: countRows[0].total,
-    page: normalizedPage,
   };
 };
 
@@ -85,6 +71,35 @@ exports.sendMessage = async (senderId, receiverId, content, postId) => {
      FROM messages WHERE id = ? LIMIT 1`,
     [result.insertId]
   );
+  return messages[0];
+};
+
+exports.sendMessageSocket = async (senderId, receiverId, content) => {
+  const [receivers] = await pool.query('SELECT id, name FROM users WHERE id = ? LIMIT 1', [receiverId]);
+  if (receivers.length === 0) {
+    const err = new Error('Không tìm thấy người nhận');
+    err.status = 404;
+    err.code = 'RECEIVER_NOT_FOUND';
+    throw err;
+  }
+
+  const [senders] = await pool.query('SELECT name FROM users WHERE id = ? LIMIT 1', [senderId]);
+  const senderName = senders[0]?.name || 'Người dùng';
+
+  const [result] = await pool.query(
+    'INSERT INTO messages (sender_id, receiver_id, content, is_read) VALUES (?, ?, ?, 0)',
+    [senderId, receiverId, content]
+  );
+
+  const [messages] = await pool.query(
+    `SELECT m.id, m.sender_id, m.receiver_id, m.content, m.is_read, m.created_at,
+            u.name AS sender_name
+     FROM messages m
+     INNER JOIN users u ON u.id = m.sender_id
+     WHERE m.id = ? LIMIT 1`,
+    [result.insertId]
+  );
+
   return messages[0];
 };
 

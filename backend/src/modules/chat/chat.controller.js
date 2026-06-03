@@ -13,9 +13,7 @@ exports.getMessages = async (req, res, next) => {
   try {
     const data = await service.getMessages(
       req.user.id,
-      Number(req.params.partnerId),
-      req.query.page,
-      req.query.limit
+      Number(req.params.partnerId)
     );
     res.json({ success: true, data });
   } catch (e) {

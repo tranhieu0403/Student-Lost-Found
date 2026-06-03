@@ -54,7 +54,7 @@ function ConversationItem({ conv, active, onClick }) {
   const initial = name.trim().charAt(0).toUpperCase();
   const last = conv.lastMessage || conv.preview || '';
   const time = conv.lastMessageAt || conv.updatedAt;
-  const unread = conv.unreadCount > 0;
+  const unread = conv.unread_count > 0;
 
   return (
     <li>
