@@ -1,8 +1,8 @@
 import { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { Eye, EyeSlash, CircleNotch } from '@phosphor-icons/react';
-import { useAuth } from '../hooks/useAuth.js';
 import { authService } from '../services/authService.js';
+import { useAuth } from '../hooks/useAuth.js';
 import { useDocumentTitle } from '../hooks/useDocumentTitle.js';
 
 const INITIAL = { name: '', email: '', password: '', confirm: '' };
@@ -63,14 +63,10 @@ export default function Register() {
     setSubmitError('');
     setLoading(true);
     try {
-      const res = await authService.register(values.name, values.email, values.password);
-      const { user, token } = res?.data || res;
-      if (token) {
-        login(user, token);
-        navigate('/', { replace: true });
-      } else {
-        navigate('/login', { replace: true });
-      }
+      await authService.register(values.name, values.email, values.password);
+      // Automatically log the user in after successful registration
+      await login(values.email, values.password);
+      navigate('/', { replace: true });
     } catch (err) {
       setSubmitError(err?.message || 'Không thể tạo tài khoản. Vui lòng thử lại.');
     } finally {

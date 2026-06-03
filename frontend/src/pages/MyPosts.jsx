@@ -40,8 +40,17 @@ export default function MyPosts() {
       .getMyPosts()
       .then((res) => {
         if (!mounted) return;
-        const payload = res?.data || {};
-        const items = Array.isArray(payload) ? payload : payload.posts || payload.items || [];
+        const data = res || {};
+        const payload = data?.data || data; // unwrap { success, data } or use direct array/object
+        const items = Array.isArray(payload)
+          ? payload
+          : Array.isArray(payload?.posts)
+          ? payload.posts
+          : Array.isArray(payload?.items)
+          ? payload.items
+          : Array.isArray(payload?.data)
+          ? payload.data
+          : [];
         setPosts(items);
       })
       .catch((e) => mounted && setError(e?.message || 'Không tải được bài đăng'))

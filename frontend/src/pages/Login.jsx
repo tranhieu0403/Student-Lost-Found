@@ -2,7 +2,6 @@ import { useState } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { Eye, EyeSlash, CircleNotch } from '@phosphor-icons/react';
 import { useAuth } from '../hooks/useAuth.js';
-import { authService } from '../services/authService.js';
 import { useDocumentTitle } from '../hooks/useDocumentTitle.js';
 
 export default function Login() {
@@ -25,10 +24,7 @@ export default function Login() {
     setError('');
     setLoading(true);
     try {
-      const res = await authService.login(email, password);
-      const { user, token } = res?.data || res;
-      if (!token) throw new Error('Phản hồi không hợp lệ');
-      login(user, token);
+      await login(email, password);
       navigate(redirectTo, { replace: true });
     } catch (err) {
       setError(err?.message || 'Email hoặc mật khẩu không đúng');

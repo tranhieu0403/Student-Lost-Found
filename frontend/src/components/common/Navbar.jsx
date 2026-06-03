@@ -15,28 +15,38 @@ import { useAuth } from '../../hooks/useAuth.js';
 const ICON = 20;
 
 export default function Navbar() {
-  const { user, isAuthenticated, logout } = useAuth();
+  const { user, isAuthenticated, loading, logout } = useAuth();
   return (
     <>
-      <DesktopNav user={user} isAuthenticated={isAuthenticated} onLogout={logout} />
-      <MobileTopBar user={user} isAuthenticated={isAuthenticated} />
+      <DesktopNav user={user} isAuthenticated={isAuthenticated} loading={loading} onLogout={logout} />
+      <MobileTopBar user={user} isAuthenticated={isAuthenticated} loading={loading} />
       <MobileBottomNav isAuthenticated={isAuthenticated} />
     </>
   );
 }
 
-function DesktopNav({ user, isAuthenticated, onLogout }) {
+function DesktopNav({ user, isAuthenticated, loading, onLogout }) {
   return (
     <nav className="hidden md:block sticky top-0 z-40 bg-white/80 backdrop-blur border-b border-gray-100">
       <div className="max-w-6xl mx-auto px-4 h-14 flex items-center justify-between">
         <Brand />
         <div className="flex items-center gap-1">
-          <TopLink to="/" exact>Trang chủ</TopLink>
           {isAuthenticated && <TopLink to="/posts/create">Đăng bài</TopLink>}
         </div>
         <div className="flex items-center gap-2">
-          {isAuthenticated ? (
-            <UserMenu user={user} onLogout={onLogout} />
+          {loading ? (
+            <div className="flex items-center gap-2" aria-hidden="true">
+              <span className="w-16 h-8 rounded-lg bg-gray-100" />
+              <span className="w-20 h-8 rounded-lg bg-gray-100" />
+            </div>
+          ) : isAuthenticated ? (
+            <>
+              <Link to="/chat" className="text-sm text-gray-700 hover:text-gray-900 px-3 py-1.5 rounded-lg hover:bg-gray-50 relative">
+                <ChatCircle size={18} weight="light" />
+                <span className="absolute -top-1 -right-1 inline-flex items-center justify-center px-2 py-0.5 text-xs font-semibold leading-none text-white bg-red-500 rounded-full">3</span>
+              </Link>
+              <UserMenu user={user} onLogout={onLogout} />
+            </>
           ) : (
             <>
               <Link
@@ -145,12 +155,14 @@ function Avatar({ name }) {
   );
 }
 
-function MobileTopBar({ user, isAuthenticated }) {
+function MobileTopBar({ user, isAuthenticated, loading }) {
   return (
     <header className="md:hidden sticky top-0 z-40 bg-white/80 backdrop-blur border-b border-gray-100">
       <div className="px-4 h-12 flex items-center justify-between">
         <Brand />
-        {isAuthenticated ? (
+        {loading ? (
+          <span className="w-8 h-8 rounded-full bg-gray-100" aria-hidden="true" />
+        ) : isAuthenticated ? (
           <Avatar name={user?.name} />
         ) : (
           <Link to="/login" className="text-sm text-accent font-medium">

@@ -13,8 +13,18 @@ export function usePosts(filters) {
       .getPosts(filters)
       .then((res) => {
         if (!mounted) return;
-        const payload = res?.data || {};
-        setData(Array.isArray(payload) ? payload : payload.posts || payload.items || []);
+        const data = res || {};
+        const payload = data?.data || data;
+        const items = Array.isArray(payload)
+          ? payload
+          : Array.isArray(payload?.posts)
+          ? payload.posts
+          : Array.isArray(payload?.items)
+          ? payload.items
+          : Array.isArray(payload?.data)
+          ? payload.data
+          : [];
+        mounted && setData(items);
       })
       .catch((e) => mounted && setError(e))
       .finally(() => mounted && setLoading(false));

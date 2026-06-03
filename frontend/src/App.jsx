@@ -21,12 +21,15 @@ import ManagePosts from './pages/admin/ManagePosts.jsx';
 import { useAuth } from './hooks/useAuth.js';
 
 function GuestOnly({ children }) {
-  const { isAuthenticated } = useAuth();
+  const { isAuthenticated, loading } = useAuth();
+  if (loading) return null;
   return isAuthenticated ? <Navigate to="/" replace /> : children;
 }
 
 export default function App() {
   const location = useLocation();
+  const isHomePage = location.pathname === '/';
+
   return (
     <div className="min-h-[100dvh] flex flex-col pb-14 md:pb-0">
       <Navbar />
@@ -69,7 +72,7 @@ export default function App() {
           </Routes>
         </div>
       </main>
-      <Footer />
+      {!isHomePage && <Footer />}
     </div>
   );
 }

@@ -1,152 +1,111 @@
-import { useCallback, useEffect, useState } from 'react';
-import { Link } from 'react-router-dom';
-import { Plus, MagnifyingGlass } from '@phosphor-icons/react';
-import PostFilter from '../components/post/PostFilter.jsx';
-import PostCard from '../components/post/PostCard.jsx';
-import PostCardSkeleton from '../components/post/PostCardSkeleton.jsx';
-import EmptyState from '../components/common/EmptyState.jsx';
-import { postService } from '../services/postService.js';
+import { useMemo, useState, useEffect } from 'react';
+// Navbar is rendered at App level
+import SearchBar from '../components/home/SearchBar.jsx';
+import FilterBar from '../components/home/FilterBar.jsx';
+import PostCard from '../components/home/PostCard.jsx';
+import EmptyState from '../components/home/EmptyState.jsx';
+import ErrorState from '../components/home/ErrorState.jsx';
 import { useDocumentTitle } from '../hooks/useDocumentTitle.js';
 
-const INITIAL_FILTERS = { type: '', category: '', location: '', date: '' };
-const PAGE_SIZE = 12;
+const INITIAL_FILTERS = {
+  type: 'all',
+  category: 'Tất cả danh mục',
+  location: 'Tất cả khu vực',
+  date: '',
+};
+
+import { postService } from '../services/postService.js';
+
+// Posts will be loaded from API
 
 export default function Home() {
-  useDocumentTitle('Tìm đồ thất lạc');
+  useDocumentTitle('Student Lost & Found');
+
+  const [search, setSearch] = useState('');
   const [filters, setFilters] = useState(INITIAL_FILTERS);
-  const [searchInput, setSearchInput] = useState('');
-  const [debouncedSearch, setDebouncedSearch] = useState('');
+  const [hasError, setHasError] = useState(false);
+  const [postsData, setPostsData] = useState([]);
+  const [loadingPosts, setLoadingPosts] = useState(true);
+  async function fetchPosts() {
+    setLoadingPosts(true);
+    try {
+      const res = await postService.getPosts();
+      // API returns { success: true, data: [...] } — normalize to array
+      let list = [];
+      if (Array.isArray(res)) list = res;
+      else if (Array.isArray(res?.data?.posts)) list = res.data.posts;
+      else if (Array.isArray(res?.data)) list = res.data;
+      else if (Array.isArray(res?.posts)) list = res.posts;
+      else list = [];
+      setPostsData(list);
+      setHasError(false);
+    } catch (err) {
+      setHasError(true);
+    } finally {
+      setLoadingPosts(false);
+    }
+  }
 
-  const [posts, setPosts] = useState([]);
-  const [page, setPage] = useState(1);
-  const [hasMore, setHasMore] = useState(false);
-  const [loading, setLoading] = useState(true);
-  const [loadingMore, setLoadingMore] = useState(false);
-  const [error, setError] = useState(null);
-
-  // Debounce search input 400ms
   useEffect(() => {
-    const id = setTimeout(() => setDebouncedSearch(searchInput.trim()), 400);
-    return () => clearTimeout(id);
-  }, [searchInput]);
+    let mounted = true;
+    if (mounted) fetchPosts();
+    return () => { mounted = false; };
+  }, []);
 
-  const fetchPosts = useCallback(
-    async (nextPage, { append } = { append: false }) => {
-      const params = {
-        ...filters,
-        search: debouncedSearch || undefined,
-        page: nextPage,
-        limit: PAGE_SIZE,
-      };
-      Object.keys(params).forEach((k) => {
-        if (params[k] === '' || params[k] == null) delete params[k];
-      });
+  const posts = useMemo(() => {
+    const keyword = search.trim().toLowerCase();
 
-      if (append) setLoadingMore(true);
-      else setLoading(true);
-      setError(null);
+    const listSource = Array.isArray(postsData) ? postsData : [];
+    return listSource.filter((post) => {
+      const matchesSearch = !keyword
+        || post.title.toLowerCase().includes(keyword)
+        || post.description.toLowerCase().includes(keyword)
+        || post.location.toLowerCase().includes(keyword);
+      const matchesType = filters.type === 'all' || post.type === filters.type;
+      const matchesCategory = filters.category === 'Tất cả danh mục' || post.category === filters.category;
+      const matchesLocation = filters.location === 'Tất cả khu vực' || post.location.includes(filters.location);
 
-      try {
-        const res = await postService.getPosts(params);
-        const payload = res?.data || {};
-        const items = Array.isArray(payload) ? payload : payload.posts || payload.items || [];
-        const more = payload.totalPages ? nextPage < payload.totalPages : items.length >= PAGE_SIZE;
-
-        setPosts((prev) => (append ? [...prev, ...items] : items));
-        setHasMore(more);
-        setPage(nextPage);
-      } catch (e) {
-        setError(e?.message || 'Không tải được danh sách bài đăng');
-        if (!append) setPosts([]);
-      } finally {
-        setLoading(false);
-        setLoadingMore(false);
-      }
-    },
-    [filters, debouncedSearch],
-  );
-
-  // Reset & refetch when filters or debounced search change
-  useEffect(() => {
-    fetchPosts(1, { append: false });
-  }, [fetchPosts]);
+      return matchesSearch && matchesType && matchesCategory && matchesLocation;
+    });
+  }, [filters, search, postsData]);
 
   return (
-    <div className="min-h-[100dvh] pb-20 md:pb-8">
-      <PostFilter
-        value={filters}
-        onChange={setFilters}
-        searchValue={searchInput}
-        onSearchChange={setSearchInput}
-      />
+    <div className="home-page">
+      {/* Navbar rendered by App */}
 
-      <div className="max-w-6xl mx-auto px-4 py-5">
-        {loading ? (
-          <Grid>
-            {Array.from({ length: 6 }).map((_, i) => (
-              <PostCardSkeleton key={i} />
-            ))}
-          </Grid>
-        ) : error ? (
-          <EmptyState
-            title="Đã xảy ra lỗi"
-            message={error}
-            action={
-              <button
-                type="button"
-                onClick={() => fetchPosts(1, { append: false })}
-                className="text-sm bg-accent hover:bg-accent-hover text-white px-4 py-2 rounded-lg font-medium"
-              >
-                Thử lại
-              </button>
-            }
-          />
+      <header className="home-hero">
+        <div className="container text-center">
+          <span className="hero-kicker">Student Lost &amp; Found</span>
+          <h1>Tìm lại đồ thất lạc dễ dàng hơn</h1>
+          <p>Kết nối người mất và người nhặt trong cộng đồng sinh viên.</p>
+          <SearchBar value={search} onChange={setSearch} />
+        </div>
+      </header>
+
+      <FilterBar filters={filters} onChange={setFilters} />
+
+      <main className="container home-content">
+        <div className="d-flex flex-column flex-sm-row align-items-sm-end justify-content-between gap-2 mb-4">
+          <div>
+            <h2 className="section-title">Bài đăng mới nhất</h2>
+            <p className="section-subtitle mb-0">Đang hiển thị {posts.length} bài đăng phù hợp.</p>
+          </div>
+        </div>
+
+        {hasError ? (
+          <ErrorState onRetry={fetchPosts} />
         ) : posts.length === 0 ? (
-          <EmptyState
-            icon={MagnifyingGlass}
-            title="Chưa có bài đăng nào"
-            message="Hãy là người đầu tiên đăng tin mất đồ hoặc nhặt được đồ."
-            action={
-              <Link
-                to="/posts/create"
-                className="inline-flex items-center gap-1.5 text-sm bg-accent hover:bg-accent-hover text-white px-4 py-2 rounded-lg font-medium"
-              >
-                <Plus size={16} weight="light" />
-                Đăng bài
-              </Link>
-            }
-          />
+          <EmptyState />
         ) : (
-          <>
-            <Grid>
-              {posts.map((p, i) => (
-                <PostCard key={p.id} post={p} index={i} />
-              ))}
-            </Grid>
-
-            {hasMore && (
-              <div className="flex justify-center mt-6">
-                <button
-                  type="button"
-                  disabled={loadingMore}
-                  onClick={() => fetchPosts(page + 1, { append: true })}
-                  className="text-sm bg-white border border-gray-200 hover:border-accent hover:text-accent text-gray-700 px-5 py-2 rounded-lg font-medium disabled:opacity-60"
-                >
-                  {loadingMore ? 'Đang tải...' : 'Xem thêm'}
-                </button>
+          <div className="row g-4">
+            {posts.map((post) => (
+              <div className="col-12 col-md-6 col-lg-4" key={post.id}>
+                <PostCard post={post} />
               </div>
-            )}
-          </>
+            ))}
+          </div>
         )}
-      </div>
-    </div>
-  );
-}
-
-function Grid({ children }) {
-  return (
-    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-      {children}
+      </main>
     </div>
   );
 }
