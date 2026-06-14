@@ -9,6 +9,7 @@
     "db:seed": "node database/reset-seed.js"
   },
   "dependencies": {
+    "@aws-sdk/client-ses": "^3.1068.0",
     "bcryptjs": "^3.0.3",
     "cors": "^2.8.5",
     "dotenv": "^16.4.5",

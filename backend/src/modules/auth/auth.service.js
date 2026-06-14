@@ -2,8 +2,7 @@ const crypto = require('crypto');
 const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
 const { pool } = require('../../config/db');
-const { sendEmail } = require('../../utils/sendEmail');
-const { resetPasswordEmailTemplate } = require('../../utils/emailTemplates');
+const { sendResetPasswordEmail } = require('../../utils/sendEmail');
 
 const RESET_TOKEN_TTL_MS = 60 * 60 * 1000;
 const GENERIC_FORGOT_MESSAGE = 'Nếu email tồn tại, bạn sẽ nhận được hướng dẫn.';
@@ -132,12 +131,8 @@ exports.forgotPassword = async ({ email }) => {
 
   const resetUrl = `${process.env.CLIENT_URL}/reset-password/${token}`;
 
-  // Không await để response không bị block bởi SMTP
-  sendEmail({
-    to: email,
-    subject: 'Đặt lại mật khẩu — Lost & Found',
-    html: resetPasswordEmailTemplate({ name: user.name, resetUrl }),
-  }).catch((e) => {
+  // Không await để response không bị block bởi SES
+  sendResetPasswordEmail(email, user.name, resetUrl).catch((e) => {
     console.error('Gửi email reset thất bại:', e);
   });
 
