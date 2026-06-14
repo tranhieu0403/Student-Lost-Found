@@ -78,9 +78,17 @@ export default function Login() {
             </div>
 
             <div className="flex flex-col gap-2">
-              <label htmlFor="password" className="text-sm font-medium text-gray-700">
-                Mật khẩu
-              </label>
+              <div className="flex items-center justify-between">
+                <label htmlFor="password" className="text-sm font-medium text-gray-700">
+                  Mật khẩu
+                </label>
+                <Link
+                  to="/forgot-password"
+                  className="text-xs text-accent hover:text-accent-hover font-medium"
+                >
+                  Quên mật khẩu?
+                </Link>
+              </div>
               <div className="relative">
                 <input
                   id="password"

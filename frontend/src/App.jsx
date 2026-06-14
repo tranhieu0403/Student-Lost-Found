@@ -7,6 +7,8 @@ import AdminRoute from './components/common/AdminRoute.jsx';
 import Home from './pages/Home.jsx';
 import Login from './pages/Login.jsx';
 import Register from './pages/Register.jsx';
+import ForgotPassword from './pages/ForgotPassword.jsx';
+import ResetPassword from './pages/ResetPassword.jsx';
 import PostDetail from './pages/PostDetail.jsx';
 import CreatePost from './pages/CreatePost.jsx';
 import MyPosts from './pages/MyPosts.jsx';
@@ -40,6 +42,8 @@ export default function App() {
 
             <Route path="/login" element={<GuestOnly><Login /></GuestOnly>} />
             <Route path="/register" element={<GuestOnly><Register /></GuestOnly>} />
+            <Route path="/forgot-password" element={<GuestOnly><ForgotPassword /></GuestOnly>} />
+            <Route path="/reset-password/:token" element={<GuestOnly><ResetPassword /></GuestOnly>} />
 
             <Route path="/posts/:id" element={<PostDetail />} />
             <Route

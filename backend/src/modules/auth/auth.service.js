@@ -1,6 +1,19 @@
+const crypto = require('crypto');
 const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
 const { pool } = require('../../config/db');
+const { sendEmail } = require('../../utils/sendEmail');
+const { resetPasswordEmailTemplate } = require('../../utils/emailTemplates');
+
+const RESET_TOKEN_TTL_MS = 60 * 60 * 1000;
+const GENERIC_FORGOT_MESSAGE = 'Nếu email tồn tại, bạn sẽ nhận được hướng dẫn.';
+
+function buildInvalidTokenError() {
+  const err = new Error('Link đã hết hạn hoặc không hợp lệ');
+  err.status = 400;
+  err.code = 'TOKEN_INVALID';
+  return err;
+}
 
 function buildUnauthorizedError(message = 'Email hoặc mật khẩu không đúng') {
   const err = new Error(message);
@@ -96,4 +109,71 @@ exports.findById = async (id) => {
 
   const { is_locked: _ignored, ...user } = users[0];
   return user;
+};
+
+exports.forgotPassword = async ({ email }) => {
+  const [users] = await pool.query(
+    'SELECT id, name FROM users WHERE email = ? AND is_locked = 0 LIMIT 1',
+    [email]
+  );
+
+  const user = users[0];
+  if (!user) {
+    return { message: GENERIC_FORGOT_MESSAGE };
+  }
+
+  const token = crypto.randomBytes(32).toString('hex');
+  const expiry = new Date(Date.now() + RESET_TOKEN_TTL_MS);
+
+  await pool.query(
+    'UPDATE users SET reset_token = ?, reset_token_expiry = ? WHERE id = ?',
+    [token, expiry, user.id]
+  );
+
+  const resetUrl = `${process.env.CLIENT_URL}/reset-password/${token}`;
+
+  // Không await để response không bị block bởi SMTP
+  sendEmail({
+    to: email,
+    subject: 'Đặt lại mật khẩu — Lost & Found',
+    html: resetPasswordEmailTemplate({ name: user.name, resetUrl }),
+  }).catch((e) => {
+    console.error('Gửi email reset thất bại:', e);
+  });
+
+  return { message: GENERIC_FORGOT_MESSAGE };
+};
+
+exports.verifyResetToken = async (token) => {
+  const [users] = await pool.query(
+    'SELECT id FROM users WHERE reset_token = ? AND reset_token_expiry > NOW() AND is_locked = 0 LIMIT 1',
+    [token]
+  );
+
+  if (users.length === 0) {
+    throw buildInvalidTokenError();
+  }
+
+  return { valid: true };
+};
+
+exports.resetPassword = async (token, { password }) => {
+  const [users] = await pool.query(
+    'SELECT id FROM users WHERE reset_token = ? AND reset_token_expiry > NOW() AND is_locked = 0 LIMIT 1',
+    [token]
+  );
+
+  const user = users[0];
+  if (!user) {
+    throw buildInvalidTokenError();
+  }
+
+  const hashedPassword = await bcrypt.hash(password, 10);
+
+  await pool.query(
+    'UPDATE users SET password = ?, reset_token = NULL, reset_token_expiry = NULL WHERE id = ?',
+    [hashedPassword, user.id]
+  );
+
+  return { message: 'Mật khẩu đã được cập nhật. Vui lòng đăng nhập lại.' };
 };

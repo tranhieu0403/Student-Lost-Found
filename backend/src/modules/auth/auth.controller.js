@@ -26,3 +26,30 @@ exports.me = async (req, res, next) => {
     next(e);
   }
 };
+
+exports.forgotPassword = async (req, res, next) => {
+  try {
+    const { message } = await service.forgotPassword(req.body);
+    res.json({ success: true, message });
+  } catch (e) {
+    next(e);
+  }
+};
+
+exports.verifyResetToken = async (req, res, next) => {
+  try {
+    const data = await service.verifyResetToken(req.params.token);
+    res.json({ success: true, data });
+  } catch (e) {
+    next(e);
+  }
+};
+
+exports.resetPassword = async (req, res, next) => {
+  try {
+    const { message } = await service.resetPassword(req.params.token, req.body);
+    res.json({ success: true, message });
+  } catch (e) {
+    next(e);
+  }
+};

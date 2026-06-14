@@ -17,8 +17,20 @@ const loginSchema = Joi.object({
   password: Joi.string().required(),
 });
 
+const forgotPasswordSchema = Joi.object({
+  email: Joi.string().email().required(),
+});
+
+const resetPasswordSchema = Joi.object({
+  password: Joi.string().min(8).required(),
+});
+
 router.post('/register', validate(registerSchema), controller.register);
 router.post('/login', validate(loginSchema), controller.login);
 router.get('/me', auth, controller.me);
+
+router.post('/forgot-password', validate(forgotPasswordSchema), controller.forgotPassword);
+router.get('/reset-password/:token', controller.verifyResetToken);
+router.post('/reset-password/:token', validate(resetPasswordSchema), controller.resetPassword);
 
 module.exports = router;
